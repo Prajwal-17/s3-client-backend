@@ -28,6 +28,47 @@ const s3 = new S3Client({
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
+//uploading files from an api endpoint watch out for folder / foldernames
+app.post("/upload", upload.single("file"), async (req, res) => {
+
+  const file = req.file;
+  const filename = req.file?.originalname;
+  // const foldername = req.body.folder || "default-folder/"
+
+  if (!file) {
+    console.log()
+    res.json({
+      message: "file doesnot exist"
+    })
+    return
+  }
+
+  const params = {
+    Bucket: "file-upload-frontend1702",
+    Key: filename, // Folder /foldername -> provide filename with extension
+    Body: file.buffer,
+    ContentType: file.mimetype,
+  };
+
+  try {
+
+    const command = new PutObjectCommand(params);
+    const data = await s3.send(command);
+
+    res.json({
+      message: "File uploaded successfull",
+      key: params.Key,
+      data: data
+    })
+
+  } catch (error) {
+    console.log(error)
+    res.json({
+      message: "Something went wrong",
+    })
+  }
+})
+
 //get metadata of all files in the given bucket name
 app.get("/list-files", async (req, res) => {
 
