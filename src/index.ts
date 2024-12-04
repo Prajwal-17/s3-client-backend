@@ -28,7 +28,6 @@ const s3 = new S3Client({
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
-
 //get metadata of all files in the given bucket name
 app.get("/list-files", async (req, res) => {
 
@@ -83,6 +82,49 @@ app.get("/signed-url/:key", async (req, res) => {
       message: "url received",
       url: url,
     })
+  } catch (error) {
+    console.log(error)
+    res.json({
+      message: "Something went wrong"
+    })
+  }
+})
+
+app.get("/download/:filename", async (req, res) => {
+
+  const filename = req.params.filename;
+
+  try {
+
+    const command = new GetObjectCommand({
+      Bucket: "file-upload-frontend1702",
+      Key: filename, //`uploads/${filename}`
+    })
+
+    const fileStream = await s3.send(command);
+
+    if (!fileStream.Body || !(fileStream.Body as any).pipe) {
+      throw new Error("File stream is not available or is not a readable stream");
+    }
+
+    //NodeJs.ReadableStream a type in node js for representing readable streams
+    const stream = fileStream.Body as NodeJS.ReadableStream;
+
+    /**
+     * set header as file attachment
+     * Content-Disposition is an HTTP header field that provides information on how to process the response payload.
+     * Content Type indicates the ext of file eg: .jpg/.png ...
+     */
+
+    res.setHeader("Content-Disposition", `attachment; filename=${filename}`);
+    res.setHeader("Content-Type", fileStream.ContentType as string || "application/octet-stream")
+
+    /**
+     * pipe method is used to direct ouptut of the readable stream to writable stream(res)
+     * This ensures that the content of the stream is sent directly to the client without buffering the entire content in memory.
+     */
+    stream.pipe(res);
+
   } catch (error) {
     console.log(error)
     res.json({
